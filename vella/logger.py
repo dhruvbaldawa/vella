@@ -3,7 +3,7 @@ import time
 from pymongo import MongoClient
 
 
-class Logger(object):
+class MongoLogger(object):
     def __init__(self, url='mongodb://localhost:27017', db='logs', session=None):
         client = MongoClient(url)
         self._c = client[db]['logs']  # ALERT!
@@ -11,8 +11,10 @@ class Logger(object):
     def _generate_id(self):
         return uuid.uuid4().hex
 
-    def log(self, kind, source, timestamp=None, description=None, extra=None):
-        if timestamp is None or not isinstance(time, (int, float, long)):
+    def log(self, kind, source, timestamp=None, description=None, **kwargs):
+        if timestamp is None or not isinstance(timestamp, (int, float, long)):
+            # maybe sanitize datetime objects sometime later and then
+            # raise ValueError for incorrect time formats
             timestamp = time.time()
 
         doc = {
@@ -25,14 +27,35 @@ class Logger(object):
         if description is not None:
             doc['description'] = description
 
-        if extra is not None:
-            doc['extra'] = extra
+        doc.update(kwargs)
 
         doc_id = self._c.insert(doc)
         return str(doc_id)
 
-    def add_to_timeline():
-        pass
+    def log_event(self, doc_id, event, timestamp=None, active=True, **kwargs):
+        if timestamp is None or not isinstance(timestamp, (int, float, long)):
+            # maybe sanitize datetime objects sometime later and then
+            # raise ValueError for incorrect time formats
+            timestamp = time.time()
 
-    def in_progress():
-        pass
+        event = {
+            'event': event,
+            'timestamp': timestamp,
+        }
+        event.update(kwargs)
+
+        doc = self._c.find_one(doc_id)
+
+        if 'timeline' not in doc:
+            doc['timeline'] = []
+
+        doc['timeline'].append(event)
+        # sort the timeline by timestamp
+        doc['timeline'] = sorted(doc['timeline'], key=lambda x: x['timestamp'])
+
+        doc['active'] = active
+        # remove the active key if inactive
+        if not active:
+            del doc['active']
+
+        self._c.save(doc)
