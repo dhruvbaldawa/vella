@@ -1,10 +1,15 @@
+import json
+
 from flask import Blueprint, request, jsonify
 from flask import current_app as app
 from flask.ext.login import UserMixin, login_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from vella.logger import MongoLogger
+
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
+logger = MongoLogger(app.config['DB_URL'], app.config['DB_NAME'])
 
 
 class User(UserMixin):
@@ -51,6 +56,20 @@ def login():
 def log():
     '''
     **Login required**
-    Log something.
+
+    :form str kind:
+    :form str source:
+    :form int/float timestamp optional:
+    :form str description optional:
+    :form json other optional:
     '''
-    return 'hello'
+    log = {
+        'kind': request.form['kind'],
+        'source': request.form['source'],
+        'timestamp': request.form.get('timestamp', None),
+        'description': request.form.get('description', None),
+    }
+    log.update(json.loads(request.form.get('other', '{}')))
+    doc_id = logger.log(log)
+
+    return jsonify({'success': True, 'doc_id': doc_id})
