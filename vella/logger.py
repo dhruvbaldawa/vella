@@ -4,7 +4,7 @@ from pymongo import MongoClient
 
 
 class MongoLogger(object):
-    def __init__(self, url='mongodb://localhost:27017', db='logs', session=None):
+    def __init__(self, url='mongodb://localhost:27017', db='logs'):
         client = MongoClient(url)
         self._c = client[db]['logs']  # ALERT!
 
