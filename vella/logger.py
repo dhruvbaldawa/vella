@@ -60,6 +60,9 @@ class MongoLogger(object):
 
         self._c.save(doc)
 
+    def get(self, doc_id_or_spec):
+        return self._c.find_one(doc_id_or_spec)
+
     def deactivate_event(self, doc_id):
         doc = self._c.find_one(doc_id)
 

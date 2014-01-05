@@ -1,9 +1,11 @@
 import json
 
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify
 from flask import current_app as app
 from flask.ext.login import UserMixin, login_user, login_required
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from vella.logger import MongoLogger
 
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -28,6 +30,10 @@ def register(name, username, password):
         'password': generate_password_hash(password),
     }
     app.db['users'].insert(user)  # ALERT!
+
+
+def _get_logger():
+    return MongoLogger(app.config['DB_URL'], app.config['DB_NAME'])
 
 
 @api.route('/login', methods=['POST'])
@@ -58,6 +64,7 @@ def log():
     :form str description optional:
     :form json other optional:
     '''
+    logger = _get_logger()
     log = {
         'kind': request.form['kind'],
         'source': request.form['source'],
@@ -65,6 +72,22 @@ def log():
         'description': request.form.get('description', None),
     }
     log.update(json.loads(request.form.get('other', '{}')))
-    doc_id = g.lgr.log(log)
+    doc_id = logger.log(**log)
 
-    return jsonify({'success': True, 'doc_id': doc_id})
+    return jsonify({'doc_id': doc_id})
+
+
+@api.route('/log/<doc_id>', methods=['GET'])
+@login_required
+def get_log(doc_id):
+    '''
+    ** Login required **
+
+    :param doc_id:
+    '''
+    logger = _get_logger()
+    doc = logger.get(doc_id)
+    if doc is not None:
+        return jsonify(doc)
+    else:
+        return jsonify({'error': 'The specified document was not found.'}), 404

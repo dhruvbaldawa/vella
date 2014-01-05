@@ -1,6 +1,5 @@
-from flask import Flask, g
+from flask import Flask
 from pymongo import MongoClient
-from vella.logger import MongoLogger
 
 
 def create_app(config='dev'):
@@ -18,9 +17,6 @@ def create_app(config='dev'):
 
     configure_db(app)
     configure_extensions(app)
-
-    with app.app_context():
-        g.lgr = MongoLogger(app.config['DB_URL'], app.config['DB_NAME'])
 
     if app.debug:
         app.logger.debug('Config: {}'.format(cfg[config]))
