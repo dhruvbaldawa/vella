@@ -59,3 +59,10 @@ class MongoLogger(object):
             del doc['active']
 
         self._c.save(doc)
+
+    def deactivate_event(self, doc_id):
+        doc = self._c.find_one(doc_id)
+
+        if 'active' in doc:
+            del doc['active']
+            self._c.save(doc)

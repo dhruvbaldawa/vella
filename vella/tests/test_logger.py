@@ -1,3 +1,4 @@
+import time
 from unittest import TestCase
 from vella.logger import MongoLogger
 from pymongo import MongoClient
@@ -28,7 +29,6 @@ class MongoLoggerTest(TestCase):
     def test_log_timestamp(self):
         ''' test if the document is being created with the supplied
         timestamp or not. '''
-        import time
         current_time = time.time()
         db_doc = self.log('test', 'unit_test', timestamp=current_time)
         self.assertEqual(db_doc['timestamp'], current_time)
@@ -65,20 +65,39 @@ class MongoLoggerTest(TestCase):
 
     def test_event_timestamp(self):
         ''' test for events with supplied timestamps. '''
-        pass
+        db_doc = self.log('test', 'unit_test')
+        current_time = time.time()
+        db_doc = self.log_event(db_doc['_id'], 'test_event',
+                                timestamp=current_time)
+
+        self.assertEqual(db_doc['timeline'][0]['timestamp'], current_time)
 
     def test_event_chronological(self):
         ''' test for events with supplied timestamps are in chronological
         order or not. '''
-        pass
+        db_doc = self.log('test', 'unit_test')
+        earlier = time.time()
+        later = time.time() + 4
+
+        self.log_event(db_doc['_id'], 'next_event', timestamp=later)
+        db_doc = self.log_event(db_doc['_id'], 'test_event', timestamp=earlier)
+
+        self.assertEqual(db_doc['timeline'][0]['event'], 'test_event')
+        self.assertEqual(db_doc['timeline'][1]['event'], 'next_event')
 
     def test_event_inactive(self):
         ''' test active flag for an inactive event. '''
-        pass
+        db_doc = self.log('test', 'unit_test')
+        db_doc = self.log_event(db_doc['_id'], 'test_event', active=False)
+
+        self.assertNotIn('active', db_doc)
 
     def test_event_active(self):
         ''' test active flag for an active event. '''
-        pass
+        db_doc = self.log('test', 'unit_test')
+        db_doc = self.log_event(db_doc['_id'], 'test_event')
+
+        self.assertTrue(db_doc['active'])
 
     def tearDown(self):
         self.client.drop_database(self.db_name)
