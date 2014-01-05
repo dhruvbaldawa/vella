@@ -1,7 +1,7 @@
 class Config(object):
     DEBUG = False
     TESTING = False
-    SECRET_KEY = 'l"\xe4\x10D\xbc9fw\t\x060\r;\xaa\xd66_:Bs\x0c|\xc6'
+    SECRET_KEY = ''
     DB_URL = 'mongodb://localhost:27017/'
     DB_NAME = 'logs'
 
