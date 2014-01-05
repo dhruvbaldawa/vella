@@ -52,4 +52,6 @@ class ApiTestCase(WebAppTestCase):
         r = self._get('13ec70d530444d729a1417d33d03e1da')
         self.assert_404(r)
 
-    def
+    def test_retrieve_log_all_fields(self):
+        ''' test retrieve log with all fields. '''
+        pass

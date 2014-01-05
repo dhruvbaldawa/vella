@@ -49,7 +49,7 @@ def login():
         login_user(User(user['_id']))
         return jsonify({'name': user['name'], 'username': user['username']})
     else:
-        return 'Invalid username/password', 401
+        return jsonify({'error': 'Invalid username/password'}), 401
 
 
 @api.route('/log', methods=['POST'])
@@ -84,6 +84,7 @@ def get_log(doc_id):
     ** Login required **
 
     :param doc_id:
+    :response 404: if the log is not found.
     '''
     logger = _get_logger()
     doc = logger.get(doc_id)
@@ -91,3 +92,49 @@ def get_log(doc_id):
         return jsonify(doc)
     else:
         return jsonify({'error': 'The specified document was not found.'}), 404
+
+
+@api.route('/event/<doc_id>', methods=['POST'])
+@login_required
+def add_event(doc_id):
+    '''
+    ** Login required **
+
+    :param doc_id:
+    :form str event:
+    :form int/float timestamp optional:
+    :form boolean active optional:
+    :form json other optional:
+    :response 404: if the log is not found.
+    '''
+    logger = _get_logger()
+    doc = logger.get(doc_id)
+    if doc is None:
+        return jsonify({'error': 'The specified document was not found.'}), 404
+
+    event = {
+        'doc_id': doc_id,
+        'event': request.form['event'],
+        'timestamp': request.form.get('timestamp', None),
+        'active': request.form.get('active', None),
+    }
+    event.update(json.loads(request.form.get('other', '{}')))
+    logger.add_event(**event)
+    return jsonify({'success': True})
+
+
+@api.route('/deactivate/<doc_id>', methods=['GET'])
+@login_required
+def deactivate(doc_id):
+    '''
+    ** Login required **
+
+    :param doc_id:
+    '''
+    logger = _get_logger()
+    doc = logger.get(doc_id)
+    if doc is None:
+        return jsonify({'error': 'The specified document was not found.'}), 404
+
+    logger.deactivate_log(doc_id)
+    return jsonify({'success': True})
