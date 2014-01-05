@@ -37,3 +37,19 @@ def configure_extensions(app):
     def load_user(userid):
         from webapp.api import User
         return User(userid)
+
+##
+## Database utility methods
+##
+
+
+def create_db(app):
+    app.db.create_collection('users')  # ALERT!
+
+
+def drop_db(app, all=False):
+    if all:
+        for collection in app.db.collection_names(False):
+            app.db.drop_collection(collection)
+    else:
+        app.db.drop_collection('users')

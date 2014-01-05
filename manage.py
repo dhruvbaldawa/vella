@@ -1,6 +1,6 @@
 from flask.ext.script import Manager, Server, prompt, prompt_pass
 from flask import current_app as app
-from webapp.app import create_app
+from webapp.app import create_app, create_db, drop_db
 
 
 manager = Manager(create_app)
@@ -12,20 +12,16 @@ manager.add_option('-c', '--config',
 
 
 @manager.command
-def drop_db(all=False):
+def drop_db_cmd(all=False):
     print 'Dropping databases. ',
-    if all:
-        for collection in app.db.collection_names(False):
-            app.db.drop_collection(collection)
-    else:
-        app.db.drop_collection('users')
+    drop_db(app, all)
     print 'Done.'
 
 
 @manager.command
-def create_db():
+def create_db_cmd():
     print 'Creating databases. ',
-    app.db.create_collection('users')
+    create_db(app)
     print 'Done.'
 
 
