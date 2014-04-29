@@ -2,7 +2,7 @@ import json
 
 from flask import Blueprint, request, jsonify
 from flask import current_app as app
-from flask.ext.login import UserMixin, login_user, login_required
+from flask.ext.login import UserMixin, login_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from vella.logger import MongoLogger
@@ -70,7 +70,13 @@ def log():
         'source': request.form['source'],
         'timestamp': request.form.get('timestamp', None),
         'description': request.form.get('description', None),
+        'added_by': current_user.get_id(),
     }
+
+    # timestamp are passed as strings
+    if log['timestamp'] is not None:
+        log['timestamp'] = float(log['timestamp'])
+
     log.update(json.loads(request.form.get('other', '{}')))
     doc_id = logger.log(**log)
 
@@ -116,10 +122,15 @@ def add_event(doc_id):
         'doc_id': doc_id,
         'event': request.form['event'],
         'timestamp': request.form.get('timestamp', None),
-        'active': request.form.get('active', None),
+        'active': request.form.get('active', True),
+        'added_by': current_user.get_id(),
     }
+
+    if event['timestamp'] is not None:
+        event['timestamp'] = float(event['timestamp'])
+
     event.update(json.loads(request.form.get('other', '{}')))
-    logger.add_event(**event)
+    logger.log_event(**event)
     return jsonify({'success': True})
 
 
