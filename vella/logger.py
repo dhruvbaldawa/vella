@@ -63,7 +63,7 @@ class MongoLogger(object):
     def get(self, doc_id_or_spec):
         return self._c.find_one(doc_id_or_spec)
 
-    def deactivate_log(self, doc_id):
+    def deactivate_event(self, doc_id):
         doc = self._c.find_one(doc_id)
 
         if 'active' in doc:
