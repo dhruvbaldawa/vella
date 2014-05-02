@@ -6,6 +6,7 @@ from flask.ext.login import UserMixin, login_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from vella.logger import MongoLogger
+from .forms import LoginForm, LogForm, EventForm
 
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -42,14 +43,16 @@ def login():
     :form str username:
     :form str password:
     '''
-    username, password = request.form['username'], request.form['password']
-    user = app.db['users'].find_one(username)  # ALERT!
-    if user is not None and check_password_hash(user['password'], password):
-        # login the user in.
-        login_user(User(user['_id']))
-        return jsonify({'name': user['name'], 'username': user['username']})
-    else:
-        return jsonify({'error': 'Invalid username/password'}), 401
+    form = LoginForm()
+    if form.validate_on_submit():
+        username, password = form['username'].data, form['password'].data
+        user = app.db['users'].find_one(username)  # ALERT!
+        if user is not None and check_password_hash(user['password'], password):
+            # login the user in.
+            login_user(User(user['_id']))
+            return jsonify({'name': user['name'], 'username': user['username']})
+
+    return jsonify({'error': 'Invalid username/password'}), 401
 
 
 @api.route('/log', methods=['POST'])
@@ -65,22 +68,15 @@ def log():
     :form json other optional:
     '''
     logger = _get_logger()
-    log = {
-        'kind': request.form['kind'],
-        'source': request.form['source'],
-        'timestamp': request.form.get('timestamp', None),
-        'description': request.form.get('description', None),
-        'added_by': current_user.get_id(),
-    }
+    form = LogForm()
+    if form.validate_on_submit():
+        log = form.data.copy()
+        log.update(json.loads(form.data.get('other', '{}')))
+        doc_id = logger.log(**log)
 
-    # timestamp are passed as strings
-    if log['timestamp'] is not None:
-        log['timestamp'] = float(log['timestamp'])
-
-    log.update(json.loads(request.form.get('other', '{}')))
-    doc_id = logger.log(**log)
-
-    return jsonify({'doc_id': doc_id})
+        return jsonify({'doc_id': doc_id})
+    else:
+        return jsonify({'errors': form.errors}), 400
 
 
 @api.route('/log/<doc_id>', methods=['GET'])
@@ -117,21 +113,15 @@ def add_event(doc_id):
     doc = logger.get(doc_id)
     if doc is None:
         return jsonify({'error': 'The specified document was not found.'}), 404
+    form = EventForm()
+    if form.validate_on_submit():
+        event = form.data.copy()
+        event.update(json.loads(form.data.get('other', '{}')))
+        logger.log_event(doc_id, **event)
 
-    event = {
-        'doc_id': doc_id,
-        'event': request.form['event'],
-        'timestamp': request.form.get('timestamp', None),
-        'active': request.form.get('active', True),
-        'added_by': current_user.get_id(),
-    }
-
-    if event['timestamp'] is not None:
-        event['timestamp'] = float(event['timestamp'])
-
-    event.update(json.loads(request.form.get('other', '{}')))
-    logger.log_event(**event)
-    return jsonify({'success': True})
+        return jsonify({'success': True})
+    else:
+        return jsonify({'errors': form.errors}), 400
 
 
 @api.route('/deactivate/<doc_id>', methods=['GET'])
