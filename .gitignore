@@ -1,2 +1,4 @@
 webapp/config.py
 *.pyc
+.coverage
+htmlcov/

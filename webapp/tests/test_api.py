@@ -130,7 +130,13 @@ class ApiTestCase(WebAppTestCase):
 
     def test_add_event_set_inactive(self):
         ''' test adding an event and making the log entry inactive. '''
-        pass
+        r = self._log('test', 'unit_test')
+        doc_id = r.json['doc_id']
+
+        r = self._add_event(doc_id, 'test_event', active=False)
+        self.assert_200(r)
+        r = self._get(doc_id)
+        self.assertNotIn('active', r.json)
 
     def test_add_event_custom_timestamp(self):
         ''' test adding event with custom timestamp. '''
