@@ -30,7 +30,7 @@ class Log(Base):
         d.update(self._document)
         d.update({
             'kind': self.kind,
-            'id': self.id,
+            '_id': self.id,  # @FIXME: Mongo compatibility
             'description': self.description,
             'source': self.source,
             'timestamp': self.timestamp,
@@ -46,12 +46,12 @@ class Log(Base):
         self._document = document
 
 
-class PostgresLogger(Logger):
+class PostgresqlLogger(Logger):
     def __init__(self, url, **kwargs):
         self._verify_url(url)
         self._engine = create_engine(url, **kwargs)
 
-        self._verify_database()
+        # self._verify_database()
 
         Session = sessionmaker(bind=self._engine)
         self.session = Session()
@@ -64,7 +64,7 @@ class PostgresLogger(Logger):
                                 .format(major, minor))
 
         if self._engine.has_table('logs'):  # ALERT!
-            Base.metadata.create_all()
+            Base.metadata.create_all(self._engine)
 
     def _verify_url(self, url):
         parsed_url = urlparse(url)
@@ -89,11 +89,15 @@ class PostgresLogger(Logger):
         if description is not None:
             log.description = description
 
-        log.data = kwargs
+        log.document = kwargs
 
         # @TODO: add robust saving mechanism
-        self.session.add(log)
-        self.session.commit()
+        try:
+            self.session.add(log)
+            self.session.commit()
+        except:
+            self.session.rollback()
+            raise
 
         return log.id
 
@@ -109,28 +113,49 @@ class PostgresLogger(Logger):
         }
         event.update(kwargs)
 
-        doc = self._c.find_one(doc_id)
+        # @TODO: add robustness
+        doc = self.session.query(Log).filter(Log.id == doc_id).one()
 
-        if 'timeline' not in doc:
-            doc['timeline'] = []
+        if 'timeline' not in doc.document:
+            doc.document += {'timeline': []}
 
-        doc['timeline'].append(event)
+        doc.document['timeline'].append(event)
         # sort the timeline by timestamp
-        doc['timeline'] = sorted(doc['timeline'], key=lambda x: x['timestamp'])
+        doc.document['timeline'] = sorted(doc.document['timeline'],
+                                          key=lambda x: x['timestamp'])
 
-        doc['active'] = active
+        doc.document['active'] = active
         # remove the active key if inactive
         if not active:
-            del doc['active']
+            del doc.document['active']
 
-        self._c.save(doc)
+        # @TODO: add robust saving mechanism
+        try:
+            self.session.add(doc)
+            self.session.commit()
+        except:
+            self.session.rollback()
+            raise
 
     def get(self, doc_id_or_spec):
-        return self._c.find_one(doc_id_or_spec)
+        # @TODO: just throw this out of the window or do something better!
+        if isinstance(doc_id_or_spec, basestring):
+            # @TODO: add robustness
+            return self.session.query(Log).filter(Log.id == doc_id_or_spec).one()
+        else:
+            # @TODO: add robustness
+            return self.session.query(Log).filter_by(**doc_id_or_spec).one()
 
     def deactivate_log(self, doc_id):
-        doc = self._c.find_one(doc_id)
+        # @TODO: add robustness
+        doc = self.session.query(Log).query.filter(Log.id == doc_id).one()
 
-        if 'active' in doc:
-            del doc['active']
-            self._c.save(doc)
+        if 'active' in doc.document:
+            del doc.document['active']
+            # @TODO: add robust saving mechanism
+            try:
+                self.session.add(doc)
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
