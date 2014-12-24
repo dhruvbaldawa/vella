@@ -22,7 +22,7 @@ class MongoLogger(Logger):
             raise InvalidDatabaseURL(url,
                                      'Port not specified (default: 27017)')
 
-        db = parsed_url.path
+        db = parsed_url.path[1:]  # remove the prefix '/'
         # reset the path and get rest of the hostname
         hostname = parsed_url._replace(path='').geturl()
 

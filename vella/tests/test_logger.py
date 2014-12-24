@@ -1,6 +1,6 @@
 import time
 from unittest import TestCase
-from vella.logger import MongoLogger
+from vella.backends.mongo import MongoLogger
 from pymongo import MongoClient
 
 
@@ -9,7 +9,7 @@ class MongoLoggerTest(TestCase):
         self.db_name = 'test_db'
         self.client = MongoClient()
         self.db = self.client[self.db_name]['logs']  # ALERT!
-        self.logger = MongoLogger(db=self.db_name)
+        self.logger = MongoLogger('mongodb://localhost:27017/' + self.db_name)
 
     def log(self, *args, **kwargs):
         doc_id = self.logger.log(*args, **kwargs)
