@@ -6,8 +6,9 @@ from ..logger import Logger, InvalidDatabaseURL
 from pymongo import MongoClient
 
 
+## @FIXME: Move this to use MongoAlchemy
 class MongoLogger(Logger):
-    def __init__(self, url='mongodb://localhost:27017/logs', **kwargs):
+    def __init__(self, url, **kwargs):
         hostname, db = self._parse_url(url)
         client = MongoClient(hostname, **kwargs)
         self._c = client[db]['logs']  # ALERT!

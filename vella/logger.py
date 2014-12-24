@@ -21,11 +21,24 @@ class Logger(object):
         raise NotImplementedError
 
 
+class VLoggerError(Exception):
+    def __init__(self, url, msg):
+        self.url = url
+        self.msg = msg
+
+    def __str__(self):
+        return '{}: {}'.format(self.msg, self.url)
+
+
 class InvalidDatabaseURL(Exception):
-    def __init__(self, url, msg=None):
+    def __init__(self, url, msg='Invalid database URL'):
         self.url = url
         if msg is None:
             self.msg = 'Invalid database URL'
 
     def __str__(self):
         return '{}: {}'.format(self.msg, self.url)
+
+
+class DatabaseError(Exception):
+    pass
