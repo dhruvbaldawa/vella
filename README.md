@@ -11,23 +11,20 @@ runs will be stored in a standardized format in vella.
 Main Concepts
 -------------
 
-Kind
-~~~~
+### Kind
 
 A log you want to record should have a kind, for example, `browser.tab.open`
 , `facebook.post.comment` or `activity.run`. I haven't thought much of it but
-right now I am using a canonical form to denote `kind` of a log record which makes future grouping easier. These could however be "source-independent", hence instead
+right now I am using a dotted representation to denote `kind` of a log record which makes future grouping easier. These could however be "source-independent", hence instead
 of `facebook.post.comment` we can use `social.post.comment`.
 
-Source
-~~~~~~
+### Source
 
 This can be used to denote the source of this log, it could be the actual
 app from which this log was captured, or the API consumer which created the
 log.
 
-Timelines
-~~~~~~~~~
+### Timelines
 
 Logs can have timelines where a log record can have multiple events within
 that timeline. For example, a log record can have `activity.run.lap_start`
