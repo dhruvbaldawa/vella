@@ -35,8 +35,9 @@ class LoggerTestCase(TestCase):
         if self.logger is None:
             return
         current_time = time.time()
+        time.sleep(1)
         db_doc = self.log('test', 'unit_test', timestamp=current_time)
-        self.assertEqual(db_doc['timestamp'], current_time)
+        self.assertEqual(int(db_doc['timestamp']), int(current_time))
 
     def test_log_other_fields(self):
         ''' test if the other fields are being properly populated or not. '''
@@ -57,7 +58,6 @@ class LoggerTestCase(TestCase):
         ''' test adding a simple event. '''
         if self.logger is None:
             return
-        import ipdb; ipdb.set_trace()
         db_doc = self.log('test', 'unit_test')
         db_doc = self.log_event(db_doc['_id'], 'test_event')
 

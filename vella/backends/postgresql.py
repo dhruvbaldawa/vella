@@ -8,7 +8,9 @@ from ..logger import Logger, InvalidDatabaseURL, DatabaseError
 from sqlalchemy import (create_engine, Column, String, Float, Text)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 
 Base = declarative_base()
 logger = logging.getLogger(__name__)
@@ -20,13 +22,14 @@ class Log(Base):
     id = Column(String(50), primary_key=True, autoincrement=False)
     kind = Column(String(255), nullable=False)
     description = Column(Text())
-    _document = Column('document', JSONB(), nullable=False)
+    _document = Column('document', MutableDict.as_mutable(JSONB),
+                       nullable=False)
     source = Column(String(255), nullable=False)
     timestamp = Column(Float(default=lambda: time.time()), nullable=False)
 
     @property
     def document(self):
-        d = {}
+        d = MutableDict()
         d.update(self._document)
         d.update({
             'kind': self.kind,
@@ -53,7 +56,9 @@ class PostgresqlLogger(Logger):
 
         # self._verify_database()
 
-        Session = sessionmaker(bind=self._engine)
+        Session = sessionmaker(bind=self._engine, autocommit=True)
+        # Session = scoped_session(sessionmaker(bind=self._engine,
+        #                                       autocommit=True))
         self.session = Session()
 
     def _verify_database(self):
@@ -93,6 +98,7 @@ class PostgresqlLogger(Logger):
 
         # @TODO: add robust saving mechanism
         try:
+            self.session.begin()
             self.session.add(log)
             self.session.commit()
         except:
@@ -117,20 +123,21 @@ class PostgresqlLogger(Logger):
         doc = self.session.query(Log).filter(Log.id == doc_id).one()
 
         if 'timeline' not in doc.document:
-            doc.document += {'timeline': []}
+            doc._document['timeline'] = []
 
-        doc.document['timeline'].append(event)
+        doc._document['timeline'].append(event)
         # sort the timeline by timestamp
-        doc.document['timeline'] = sorted(doc.document['timeline'],
-                                          key=lambda x: x['timestamp'])
+        doc._document['timeline'] = sorted(doc.document['timeline'],
+                                           key=lambda x: x['timestamp'])
 
-        doc.document['active'] = active
+        doc._document['active'] = active
         # remove the active key if inactive
         if not active:
-            del doc.document['active']
+            del doc._document['active']
 
         # @TODO: add robust saving mechanism
         try:
+            self.session.begin()
             self.session.add(doc)
             self.session.commit()
         except:
@@ -154,6 +161,7 @@ class PostgresqlLogger(Logger):
             del doc.document['active']
             # @TODO: add robust saving mechanism
             try:
+                self.session.begin()
                 self.session.add(doc)
                 self.session.commit()
             except:
