@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 class Log(Base):
     __tablename__ = 'logs'  # ALERT!
 
-    id = Column(String(50), primary_key=True, autoincrement=False)
+    id = Column(String(64), primary_key=True, autoincrement=False)
     kind = Column(String(255), nullable=False)
     _document = Column('document', MutableDict.as_mutable(JSONB),
                        nullable=False)
-    source = Column(String(255), nullable=False)
+    source = Column(String(255), nullable=True)
     timestamp = Column(Float(default=lambda: time.time()), nullable=False)
 
     @property
@@ -32,7 +32,7 @@ class Log(Base):
         d.update(self._document)
         d.update({
             'kind': self.kind,
-            '_id': self.id,  # @FIXME: Mongo compatibility
+            'id': self.id,
             'source': self.source,
             'timestamp': self.timestamp,
         })
@@ -52,7 +52,7 @@ class PostgresqlLogger(Logger):
         self._verify_url(url)
         self._engine = create_engine(url, **kwargs)
 
-        # self._verify_database()
+        self._verify_database()
 
         # Session = sessionmaker(bind=self._engine, autocommit=True)
         Session = scoped_session(sessionmaker(bind=self._engine,
@@ -60,7 +60,7 @@ class PostgresqlLogger(Logger):
         self.session = Session()
 
     def _verify_database(self):
-        major, minor, _ = self._engine.dialect.server_version_info
+        major, minor, _ = self._engine.dialect._get_server_version_info(self._engine)
         if not (major >= 9 and minor >= 4):
             raise DatabaseError('Incompatible version of database found '
                                 'should be >= 9.4 and found {}.{}'
@@ -76,14 +76,15 @@ class PostgresqlLogger(Logger):
                                      'Invalid URL Scheme, '
                                      'should be "postgresql"')
 
-    def log(self, kind, id=None, source=None, timestamp=None, **kwargs):
+    def log(self, kind, id=None, source=None, timestamp=None,
+            update_existing=False, **kwargs):
         if timestamp is None or not isinstance(timestamp, (int, float, long)):
             # maybe sanitize datetime objects sometime later and then
             # raise ValueError for incorrect time formats
             timestamp = time.time()
 
         log = Log(
-            id=self.generate_id(),
+            id=self.generate_id(id),
             kind=kind,
             timestamp=timestamp,
             source=source,
@@ -102,7 +103,7 @@ class PostgresqlLogger(Logger):
 
         return log.id
 
-    def log_event(self, doc_id, event, timestamp=None, active=True, **kwargs):
+    def log_event(self, id, event, timestamp=None, active=True, **kwargs):
         if timestamp is None or not isinstance(timestamp, (int, float, long)):
             # maybe sanitize datetime objects sometime later and then
             # raise ValueError for incorrect time formats
@@ -115,7 +116,7 @@ class PostgresqlLogger(Logger):
         event.update(kwargs)
 
         # @TODO: add robustness
-        doc = self.session.query(Log).filter(Log.id == doc_id).one()
+        doc = self.session.query(Log).filter(Log.id == id).one()
 
         if 'timeline' not in doc.document:
             doc._document['timeline'] = []
@@ -139,18 +140,15 @@ class PostgresqlLogger(Logger):
             self.session.rollback()
             raise
 
-    def get(self, doc_id):
+    def get(self, id):
         # @TODO: just throw this out of the window or do something better!
-        if isinstance(doc_id, basestring):
+        if isinstance(id, basestring):
             # @TODO: add robustness
-            return self.session.query(Log).filter(Log.id == doc_id).one()
-        else:
-            # @TODO: add robustness
-            return self.session.query(Log).filter_by(**doc_id).one()
+            return self.session.query(Log).filter(Log.id == id).one()
 
-    def deactivate_log(self, doc_id):
+    def deactivate_log(self, id):
         # @TODO: add robustness
-        doc = self.session.query(Log).query.filter(Log.id == doc_id).one()
+        doc = self.session.query(Log).query.filter(Log.id == id).one()
 
         if 'active' in doc.document:
             del doc.document['active']
