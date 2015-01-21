@@ -120,20 +120,6 @@ class LoggerTestCase(TestCase):
         self.assertTrue(db_doc['active'])
 
 
-class MongoLoggerTestCase(LoggerTestCase):
-    def setUp(self):
-        self.db_name = 'test_db'
-        self.client = MongoClient()
-        self.db = self.client[self.db_name]['logs']  # ALERT!
-        self.logger = MongoLogger('mongodb://localhost:27017/' + self.db_name)
-
-    def get_document(self, doc_id):
-        return self.db.find_one(doc_id)
-
-    def tearDown(self):
-        self.client.drop_database(self.db_name)
-
-
 class PostgresqlLoggerTestCase(LoggerTestCase):
     def setUp(self):
         self.logger = PostgresqlLogger('postgresql://dhruv:dhruv@localhost/test_db')
