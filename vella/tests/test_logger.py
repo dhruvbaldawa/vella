@@ -1,8 +1,6 @@
 import time
 from unittest import TestCase
-from vella.backends.mongo import MongoLogger
 from vella.backends.postgresql import Log, PostgresqlLogger, Base
-from pymongo import MongoClient
 
 
 class LoggerTestCase(TestCase):

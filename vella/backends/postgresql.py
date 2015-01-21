@@ -5,7 +5,7 @@ from urlparse import urlparse
 
 from ..logger import Logger, InvalidDatabaseURL, DatabaseError
 
-from sqlalchemy import (create_engine, Column, String, Float, Text)
+from sqlalchemy import create_engine, Column, String, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
@@ -21,7 +21,6 @@ class Log(Base):
 
     id = Column(String(50), primary_key=True, autoincrement=False)
     kind = Column(String(255), nullable=False)
-    description = Column(Text())
     _document = Column('document', MutableDict.as_mutable(JSONB),
                        nullable=False)
     source = Column(String(255), nullable=False)
@@ -34,7 +33,6 @@ class Log(Base):
         d.update({
             'kind': self.kind,
             '_id': self.id,  # @FIXME: Mongo compatibility
-            'description': self.description,
             'source': self.source,
             'timestamp': self.timestamp,
         })
@@ -42,7 +40,7 @@ class Log(Base):
 
     @document.setter
     def document(self, document):
-        for field in ['id', 'kind', 'description', 'source', 'timestamp']:
+        for field in ['id', 'kind', 'source', 'timestamp']:
             if field in document:
                 setattr(self, field, document[field])
                 del document[field]
@@ -56,9 +54,9 @@ class PostgresqlLogger(Logger):
 
         # self._verify_database()
 
-        Session = sessionmaker(bind=self._engine, autocommit=True)
-        # Session = scoped_session(sessionmaker(bind=self._engine,
-        #                                       autocommit=True))
+        # Session = sessionmaker(bind=self._engine, autocommit=True)
+        Session = scoped_session(sessionmaker(bind=self._engine,
+                                              autocommit=True))
         self.session = Session()
 
     def _verify_database(self):
@@ -78,7 +76,7 @@ class PostgresqlLogger(Logger):
                                      'Invalid URL Scheme, '
                                      'should be "postgresql"')
 
-    def log(self, kind, source, timestamp=None, description=None, **kwargs):
+    def log(self, kind, id=None, source=None, timestamp=None, **kwargs):
         if timestamp is None or not isinstance(timestamp, (int, float, long)):
             # maybe sanitize datetime objects sometime later and then
             # raise ValueError for incorrect time formats
@@ -90,9 +88,6 @@ class PostgresqlLogger(Logger):
             timestamp=timestamp,
             source=source,
         )
-
-        if description is not None:
-            log.description = description
 
         log.document = kwargs
 
@@ -144,14 +139,14 @@ class PostgresqlLogger(Logger):
             self.session.rollback()
             raise
 
-    def get(self, doc_id_or_spec):
+    def get(self, doc_id):
         # @TODO: just throw this out of the window or do something better!
-        if isinstance(doc_id_or_spec, basestring):
+        if isinstance(doc_id, basestring):
             # @TODO: add robustness
-            return self.session.query(Log).filter(Log.id == doc_id_or_spec).one()
+            return self.session.query(Log).filter(Log.id == doc_id).one()
         else:
             # @TODO: add robustness
-            return self.session.query(Log).filter_by(**doc_id_or_spec).one()
+            return self.session.query(Log).filter_by(**doc_id).one()
 
     def deactivate_log(self, doc_id):
         # @TODO: add robustness
