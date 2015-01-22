@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Log(Base):
     __tablename__ = 'logs'  # ALERT!
 
-    id = Column(String(64), primary_key=True, autoincrement=False)
+    id = Column(String(65), primary_key=True, autoincrement=False)
     kind = Column(String(255), nullable=False)
     _document = Column('document', MutableDict.as_mutable(JSONB),
                        nullable=False)
@@ -83,8 +83,9 @@ class PostgresqlLogger(Logger):
             # raise ValueError for incorrect time formats
             timestamp = time.time()
 
+        id = self.get_db_id(id)
         log = Log(
-            id=self.generate_id(id),
+            id=id,
             kind=kind,
             timestamp=timestamp,
             source=source,
@@ -116,6 +117,7 @@ class PostgresqlLogger(Logger):
         event.update(kwargs)
 
         # @TODO: add robustness
+        id = self.get_db_id(id)
         doc = self.session.query(Log).filter(Log.id == id).one()
 
         if 'timeline' not in doc.document:
@@ -140,13 +142,18 @@ class PostgresqlLogger(Logger):
             self.session.rollback()
             raise
 
-    def get(self, id):
+    def _get(self, id):
+        id = self.get_db_id(id)
         # @TODO: just throw this out of the window or do something better!
         if isinstance(id, basestring):
             # @TODO: add robustness
             return self.session.query(Log).filter(Log.id == id).one()
 
+    def get(self, id):
+        return self._get(id).document
+
     def deactivate_log(self, id):
+        id = self.get_db_id(id)
         # @TODO: add robustness
         doc = self.session.query(Log).query.filter(Log.id == id).one()
 

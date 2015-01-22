@@ -7,10 +7,11 @@ from vella.backends.postgresql import Log, PostgresqlLogger, Base
 
 class LoggerTestCase(TestCase):
     db_name = 'test_db'
+    __test__ = False
     logger = None
 
     def get_document(self, id):
-        pass
+        pass  # pragma: no cover
 
     def log(self, *args, **kwargs):
         id = self.logger.log(*args, **kwargs)
@@ -25,15 +26,11 @@ class LoggerTestCase(TestCase):
 
     def test_log(self):
         ''' test if the document is being created or not. '''
-        if self.logger is None:
-            return
         self.log('test', 'unit_test')
 
     def test_log_timestamp(self):
         ''' test if the document is being created with the supplied
         timestamp or not. '''
-        if self.logger is None:
-            return
         current_time = time.time()
         time.sleep(1)
         db_doc = self.log('test', 'unit_test', timestamp=current_time)
@@ -41,8 +38,6 @@ class LoggerTestCase(TestCase):
 
     def test_log_other_fields(self):
         ''' test if the other fields are being properly populated or not. '''
-        if self.logger is None:
-            return
         doc = {
             'kind': 'test',
             'source': 'unit_test',
@@ -55,8 +50,6 @@ class LoggerTestCase(TestCase):
 
     def test_event(self):
         ''' test adding a simple event. '''
-        if self.logger is None:
-            return
         db_doc = self.log('test', 'unit_test')
         db_doc = self.log_event(db_doc['id'], 'test_event')
 
@@ -65,8 +58,6 @@ class LoggerTestCase(TestCase):
 
     def test_multiple_events(self):
         ''' test adding multiple events. '''
-        if self.logger is None:
-            return
         db_doc = self.log('test', 'unit_test')
         db_doc = self.log_event(db_doc['id'], 'test_event')
         db_doc = self.log_event(db_doc['id'], 'test_event2')
@@ -76,8 +67,6 @@ class LoggerTestCase(TestCase):
 
     def test_event_timestamp(self):
         ''' test for events with supplied timestamps. '''
-        if self.logger is None:
-            return
         db_doc = self.log('test', 'unit_test')
         current_time = time.time()
         db_doc = self.log_event(db_doc['id'], 'test_event',
@@ -88,8 +77,6 @@ class LoggerTestCase(TestCase):
     def test_event_chronological(self):
         ''' test for events with supplied timestamps are in chronological
         order or not. '''
-        if self.logger is None:
-            return
         db_doc = self.log('test', 'unit_test')
         earlier = time.time()
         later = time.time() + 4
@@ -102,8 +89,6 @@ class LoggerTestCase(TestCase):
 
     def test_event_inactive(self):
         ''' test active flag for an inactive event. '''
-        if self.logger is None:
-            return
         db_doc = self.log('test', 'unit_test')
         db_doc = self.log_event(db_doc['id'], 'test_event', active=False)
 
@@ -111,30 +96,53 @@ class LoggerTestCase(TestCase):
 
     def test_event_active(self):
         ''' test active flag for an active event. '''
-        if self.logger is None:
-            return
         db_doc = self.log('test', 'unit_test')
         db_doc = self.log_event(db_doc['id'], 'test_event')
 
         self.assertTrue(db_doc['active'])
 
+    def test_user_given_id(self):
+        given_id = 'new_log_123'
+        db_doc = self.log('test', id=given_id)
+        system_id = db_doc['id']
+        self.assertEqual(self.get_document(given_id),
+                         self.get_document(system_id))
+
+    def test_user_given_id_update(self):
+        # test if the user given id updates the correct log
+        pass
+
 
 class PostgresqlLoggerTestCase(LoggerTestCase):
+    __test__ = True
+
     def setUp(self):
-        self.logger = PostgresqlLogger('postgresql://dhruv:dhruv@localhost/test_db')
+        self.logger = PostgresqlLogger('postgresql://test:test@localhost/test_db')
         Base.metadata.create_all(self.logger._engine)
 
     def get_document(self, id):
-        return self.logger.session.query(Log).filter(Log.id == id).one().document
+        return self.logger.get(id)
+
+    def test_set_document_fields(self):
+        data = {
+            'kind': 'test',
+            'timestamp': int(time.time()),
+            'source': 'source',
+        }
+        db_doc = self.log(id='unit_test', **data)
+        db_obj = self.logger._get(db_doc['id'])
+
+        for k, v in data.iteritems():
+            self.assertEqual(getattr(db_obj, k), v)
 
     def tearDown(self):
         Base.metadata.drop_all(self.logger._engine)
 
 
 class PostgresqlDatabaseTestCase(TestCase):
-    def create_logger(self, url='postgresql://dhruv:dhruv@localhost/test_db'):
-            logger = PostgresqlLogger(url)
-            logger._verify_database()
+    def create_logger(self, url='postgresql://test:test@localhost/test_db'):
+        logger = PostgresqlLogger(url)
+        logger._verify_database()
 
     def test_postgresql_database_url(self):
         with self.assertRaises(InvalidDatabaseURL):
